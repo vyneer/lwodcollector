@@ -1,0 +1,7 @@
+client_secret*.json
+*.db
+.env
+.vscode
+db
+lwodcollector
+*.exe
