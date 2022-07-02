@@ -178,9 +178,6 @@ func ParseSheets(sheets map[string]LWODSheet, config config.Config) {
 
 				dates := make(map[int]time.Time)
 				var timeBuffer time.Time
-				// for i, v := range ws.Rows {
-
-				// }
 
 				for i, v := range ws.Rows {
 					var youtubeID string
