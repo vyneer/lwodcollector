@@ -47,7 +47,7 @@ func createTemplate(row []string) LWODTemplate {
 			name := strings.ToLower(tempReflectType.Field(k).Name)
 			switch name {
 			case "twitch":
-				if strings.Contains(lc, name) || strings.Contains(lc, "link") {
+				if strings.Contains(lc, name) || lc == "link to vod" {
 					reflect.ValueOf(&template).Elem().FieldByName(tempReflectType.Field(k).Name).SetInt(int64(i))
 				}
 			default:
