@@ -82,10 +82,12 @@ func main() {
 	}
 
 	if cfg.Flags.Continuous != 0 {
+		sleepTime := time.Second * 60 * time.Duration(cfg.Flags.Continuous)
 		log.Infof("Running the application in continuous mode, refreshing every %d minute(s)", cfg.Flags.Continuous)
 		for {
 			loop()
-			time.Sleep(time.Second * 60 * time.Duration(cfg.Flags.Continuous))
+			log.Infof("Sleeping for %.f minutes...", sleepTime.Minutes())
+			time.Sleep(sleepTime)
 		}
 	} else {
 		loop()
