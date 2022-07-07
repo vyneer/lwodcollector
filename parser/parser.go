@@ -140,7 +140,7 @@ func CollectSheets(config config.Config) (map[string]LWODSheet, error) {
 				}
 				for _, sheet := range result.Files {
 					if sheet.MimeType == "application/vnd.google-apps.spreadsheet" {
-						lwod[fmt.Sprintf(`%s - %s`, fileYears.Name, sheet.Name[:2])] = LWODSheet{
+						lwod[fmt.Sprintf(`%s-%s`, fileYears.Name, sheet.Name[:2])] = LWODSheet{
 							ID:   sheet.Id,
 							Name: sheet.Name,
 						}
@@ -306,6 +306,11 @@ func ParseSheets(sheets map[string]LWODSheet, config config.Config) {
 							if err != nil {
 								log.Fatalf("Couldn't insert entry into lwodUrl with YouTube ID %s: %v", key, err)
 							}
+						} else if config.Flags.AllSheets {
+							_, err = config.DBConfig.Statements.InsertURLStmt.Exec(fmt.Sprintf("%s-01", sheetKey), sheet.ID)
+							if err != nil {
+								log.Fatalf("Couldn't insert entry into lwodUrl with YouTube ID %s: %v", key, err)
+							}
 						}
 					}
 				}
@@ -341,6 +346,11 @@ func ParseSheets(sheets map[string]LWODSheet, config config.Config) {
 						hashes[key] = hashNew
 						if k+1 == 2 && sheetKey == "Today" {
 							_, err = config.DBConfig.Statements.InsertURLStmt.Exec(fmt.Sprintf("%s-01", time.Now().Format("2006-01")), sheet.ID)
+							if err != nil {
+								log.Fatalf("Couldn't insert entry into lwodUrl with Twitch ID %s: %v", key, err)
+							}
+						} else if config.Flags.AllSheets {
+							_, err = config.DBConfig.Statements.InsertURLStmt.Exec(fmt.Sprintf("%s-01", sheetKey), sheet.ID)
 							if err != nil {
 								log.Fatalf("Couldn't insert entry into lwodUrl with Twitch ID %s: %v", key, err)
 							}
