@@ -64,7 +64,7 @@ const sqlCreateMain string = `CREATE TABLE IF NOT EXISTS lwod (
 	vidid text, 
 	starttime text, 
 	endtime text, 
-	yttime text,
+	yttime integer,
 	game text, 
 	subject text, 
 	topic text,
