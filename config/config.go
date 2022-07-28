@@ -14,7 +14,7 @@ import (
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/drive/v3"
 	"google.golang.org/api/option"
-	"gopkg.in/Iwark/spreadsheet.v2"
+	"google.golang.org/api/sheets/v4"
 )
 
 type DBConfig struct {
@@ -36,7 +36,7 @@ type Statements struct {
 
 type GoogleConfig struct {
 	Drive  *drive.Service
-	Sheets *spreadsheet.Service
+	Sheets *sheets.Service
 }
 
 type Flags struct {
@@ -231,7 +231,7 @@ func CreateGoogleClients(config *Config) {
 	}
 	client := cfg.Client(ctx)
 
-	config.GoogleConfig.Sheets = spreadsheet.NewServiceWithClient(client)
+	config.GoogleConfig.Sheets, err = sheets.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		log.Fatalf("Unable to retrieve Sheets client: %v", err)
 	}

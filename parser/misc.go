@@ -3,14 +3,25 @@ package parser
 import (
 	"database/sql"
 
-	"gopkg.in/Iwark/spreadsheet.v2"
+	"google.golang.org/api/sheets/v4"
 )
 
-func getRowValues(row []spreadsheet.Cell) []string {
+func fillWithBlank(v *[]*sheets.CellData, maxValueOfTemplate int64) {
+	if len(*v) < int(maxValueOfTemplate)+1 {
+		for i := len(*v); i < int(maxValueOfTemplate)+1; i++ {
+			blank := sheets.CellData{
+				FormattedValue: "",
+			}
+			*v = append(*v, &blank)
+		}
+	}
+}
+
+func getRowValues(row []*sheets.CellData) []string {
 	var rowStrings []string
 
 	for _, v := range row {
-		rowStrings = append(rowStrings, v.Value)
+		rowStrings = append(rowStrings, v.FormattedValue)
 	}
 
 	return rowStrings

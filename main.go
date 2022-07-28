@@ -33,10 +33,7 @@ func init() {
 }
 
 func loop() {
-	config.CreateGoogleClients(&cfg)
-	config.LoadDatabase(&cfg)
-
-	sheets, err := parser.CollectSheets(cfg)
+	sheets, err := parser.CollectSheets(&cfg)
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
@@ -52,9 +49,9 @@ func loop() {
 	} else {
 		log.Infof("Grabbed the sheets from the folder: %+v", sheets)
 	}
-	parser.ParseSheets(sheets, cfg)
+	parser.ParseSheets(sheets, &cfg)
 	if cfg.HealthCheck != "" && cfg.Flags.Continuous != 0 {
-		util.HealthCheck(cfg.HealthCheck)
+		util.HealthCheck(&cfg.HealthCheck)
 	}
 }
 
@@ -65,6 +62,9 @@ func main() {
 	if cfg.Flags.Verbose {
 		log.SetLevel(apex.DebugLevel)
 	}
+
+	config.CreateGoogleClients(&cfg)
+	config.LoadDatabase(&cfg)
 
 	switch cfg.Flags.Continuous {
 	case 0:

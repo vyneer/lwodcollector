@@ -37,6 +37,22 @@ type LWODSheetData struct {
 	YouTubeLinks, TwitchLinks map[string][]LWODEntry
 }
 
+func maxOfTemplate(template LWODTemplate) int64 {
+	tempReflectType := reflect.TypeOf(LWODTemplate{})
+	var max int64 = 0
+
+	for _, v := range reflect.VisibleFields(tempReflectType) {
+		for k := 0; k < tempReflectType.NumField(); k++ {
+			val := reflect.ValueOf(&template).Elem().FieldByName(v.Name).Int()
+			if max < val {
+				max = val
+			}
+		}
+	}
+
+	return max
+}
+
 func createTemplate(row []string) LWODTemplate {
 	var template LWODTemplate
 	tempReflectType := reflect.TypeOf(LWODTemplate{})
@@ -62,7 +78,7 @@ func createTemplate(row []string) LWODTemplate {
 	return template
 }
 
-func CollectSheets(config config.Config) (map[string]LWODSheet, error) {
+func CollectSheets(config *config.Config) (map[string]LWODSheet, error) {
 	var lwod = make(map[string]LWODSheet, 0)
 
 	resultYears, err := config.GoogleConfig.Drive.Files.List().Q(fmt.Sprintf(`"%s" in parents`, config.Folder)).Fields("files(*)").Do()
@@ -153,22 +169,23 @@ func CollectSheets(config config.Config) (map[string]LWODSheet, error) {
 	return lwod, nil
 }
 
-func ParseSheets(sheets map[string]LWODSheet, config config.Config) {
+func ParseSheets(sheets map[string]LWODSheet, config *config.Config) {
 	numberRegex := regexp.MustCompile(`(\d+)`)
 	youtubeTimeRegex := regexp.MustCompile(`(?P<hours>\d+)h(?P<minutes>\d+)m(?P<seconds>\d+)s|(?P<onlysec>^\d+$)`)
 
 	y := 0
 	for sheetKey, sheet := range sheets {
 		log.Infof(`Running sheet ID %s (name: "%s", number %d/%d)`, sheet.ID, sheet.Name, y+1, len(sheets))
-		file, err := config.GoogleConfig.Sheets.FetchSpreadsheet(sheet.ID)
+		file, err := config.GoogleConfig.Sheets.Spreadsheets.Get(sheet.ID).Fields("spreadsheetId,properties.title,sheets(properties,data.rowData.values(userEnteredValue,effectiveValue,formattedValue,note))").Do()
 		if err != nil {
 			log.Fatalf("Sheets error: %v", err)
 		}
 		for k, ws := range file.Sheets {
 			log.Infof(`Running worksheet number %d/%d (name: "%s")`, k+1, len(file.Sheets), ws.Properties.Title)
-			firstRow := getRowValues(ws.Rows[0])
+			firstRow := getRowValues(ws.Data[0].RowData[0].Values)
 			if slices.Contains(firstRow, "Topic") && slices.Contains(firstRow, "Date") {
 				template := createTemplate(firstRow)
+				maxValueOfTemplate := maxOfTemplate(template)
 				log.Debugf("Created the template for current worksheet: %+v", template)
 
 				entries := make(map[string][]LWODEntry)
@@ -179,22 +196,25 @@ func ParseSheets(sheets map[string]LWODSheet, config config.Config) {
 				dates := make(map[int]time.Time)
 				var timeBuffer time.Time
 
-				for i, v := range ws.Rows {
+				for i, row := range ws.Data[0].RowData {
+					fillWithBlank(&row.Values, maxValueOfTemplate)
 					var youtubeID string
 					var youtubeStamp int
 					var twitchID string
-					if strings.Contains(v[template.Date].Value, "/") {
-						timeBuffer, err = time.Parse("02/01/06", v[template.Date].Value)
+					v := row.Values
+
+					if strings.Contains(v[template.Date].FormattedValue, "/") {
+						timeBuffer, err = time.Parse("02/01/06", v[template.Date].FormattedValue)
 						if err != nil {
-							timeBuffer, err = time.Parse("01/02/06", v[template.Date].Value)
+							timeBuffer, err = time.Parse("01/02/06", v[template.Date].FormattedValue)
 							if err != nil {
 								log.Fatalf("Time parse error: %v", err)
 							}
 						}
 					}
 					dates[i] = timeBuffer
-					if strings.Contains(v[template.YouTube].Value, "youtu") {
-						ytURL, err := url.Parse(strings.TrimSpace(v[template.YouTube].Value))
+					if strings.Contains(v[template.YouTube].FormattedValue, "youtu") {
+						ytURL, err := url.Parse(strings.TrimSpace(v[template.YouTube].FormattedValue))
 						if err != nil {
 							log.Fatalf("URL parse error: %v", err)
 						}
@@ -204,7 +224,7 @@ func ParseSheets(sheets map[string]LWODSheet, config config.Config) {
 						case "youtube.com":
 							youtubeID = ytURL.Query().Get("v")
 						default:
-							log.Debugf("No YouTube URL in row: %+v", v[template.YouTube].Value)
+							log.Debugf("No YouTube URL in row: %+v", v[template.YouTube].FormattedValue)
 						}
 						matches := youtubeTimeRegex.FindStringSubmatch(ytURL.Query().Get("t"))
 						if len(matches) > 0 {
@@ -234,8 +254,8 @@ func ParseSheets(sheets map[string]LWODSheet, config config.Config) {
 							}
 						}
 					}
-					if strings.Contains(v[template.Twitch].Value, "twitch.tv/videos") {
-						twitchURL, err := url.Parse(strings.TrimSpace(v[template.Twitch].Value))
+					if strings.Contains(v[template.Twitch].FormattedValue, "twitch.tv/videos") {
+						twitchURL, err := url.Parse(strings.TrimSpace(v[template.Twitch].FormattedValue))
 						if err != nil {
 							log.Fatalf("URL parse error: %v", err)
 						}
@@ -243,7 +263,7 @@ func ParseSheets(sheets map[string]LWODSheet, config config.Config) {
 						if id != "" {
 							twitchID = id
 						} else {
-							log.Debugf("No Twitch URL in row: %+v", v[template.Twitch].Value)
+							log.Debugf("No Twitch URL in row: %+v", v[template.Twitch].FormattedValue)
 						}
 					}
 					if youtubeID != "" || twitchID != "" {
@@ -252,12 +272,12 @@ func ParseSheets(sheets map[string]LWODSheet, config config.Config) {
 							DateStreamed: dates[i],
 							YouTube:      youtubeID,
 							Twitch:       twitchID,
-							Start:        v[template.Start].Value,
-							End:          v[template.End].Value,
+							Start:        v[template.Start].FormattedValue,
+							End:          v[template.End].FormattedValue,
 							YouTubeStamp: youtubeStamp,
-							Game:         v[template.Game].Value,
-							Subject:      v[template.Subject].Value,
-							Topic:        v[template.Topic].Value,
+							Game:         v[template.Game].FormattedValue,
+							Subject:      v[template.Subject].FormattedValue,
+							Topic:        v[template.Topic].FormattedValue,
 						}
 						if youtubeID != "" {
 							ytURLs[youtubeID] = append(ytURLs[youtubeID], entry)
