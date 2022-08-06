@@ -1,10 +1,31 @@
-package parser
+package gsheets
 
 import (
 	"database/sql"
+	"fmt"
 
 	"google.golang.org/api/sheets/v4"
 )
+
+type LWODErrorWrapper struct {
+	Message string
+	Err     error
+}
+
+func (err *LWODErrorWrapper) Error() string {
+	return fmt.Sprintf("[LWOD] %s: %v", err.Message, err.Err)
+}
+
+func (err *LWODErrorWrapper) Unwrap() error {
+	return err.Err
+}
+
+func WrapWithLWODError(err error, message string) error {
+	return &LWODErrorWrapper{
+		Message: message,
+		Err:     err,
+	}
+}
 
 func fillWithBlank(v *[]*sheets.CellData, maxValueOfTemplate int64) {
 	if len(*v) < int(maxValueOfTemplate)+1 {

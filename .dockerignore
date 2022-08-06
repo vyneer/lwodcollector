@@ -4,4 +4,5 @@ client_secret*.json
 .vscode
 db
 lwodcollector
+lwodcollector-*
 *.exe
