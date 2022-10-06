@@ -37,6 +37,8 @@ func ScrapeLivestreamID(config *config.Config) string {
 	var index int
 	var id string
 	c := colly.NewCollector()
+	// disable cookie handling to bypass youtube consent screen
+	c.DisableCookies()
 
 	c.OnResponse(func(r *colly.Response) {
 		index = strings.Index(string(r.Body), "Started streaming ")
