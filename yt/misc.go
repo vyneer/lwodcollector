@@ -1,6 +1,9 @@
 package yt
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type YTErrorWrapper struct {
 	Message string
@@ -36,4 +39,19 @@ func VODIndex(vods []YTVod, id string) int {
 	}
 
 	return -1
+}
+
+func CalculateEndTime(endtime string, starttime string) (string, error) {
+	if endtime == "" {
+		starttimeGo, err := time.Parse("2006-01-02T15:04:05Z", starttime)
+		if err != nil {
+			return endtime, err
+		} else {
+			currentTime := time.Now().UTC()
+			duration := currentTime.Sub(starttimeGo) + (time.Minute * 15)
+			return starttimeGo.Add(duration).Format("2006-01-02T15:04:05Z"), nil
+		}
+	} else {
+		return endtime, nil
+	}
 }

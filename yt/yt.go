@@ -185,7 +185,10 @@ func UpdateEverythingVideo(config *config.Config, video *youtube.Video, vod YTVo
 			for _, v := range info {
 				starttime := v.LiveStreamingDetails.ActualStartTime
 				if starttime != "" {
-					endtime := v.LiveStreamingDetails.ActualEndTime
+					endtime, err := CalculateEndTime(v.LiveStreamingDetails.ActualEndTime, starttime)
+					if err != nil {
+						log.Errorf("[YT] Couldn't parse the starttime for VOD with ID %s: %v", vod.ID, err)
+					}
 
 					hashString := vid + pubtime + title + starttime + endtime + thumbnail + livestreamEtag
 					hashNewUint64 := xxhash.Sum64String(hashString)
@@ -206,7 +209,10 @@ func UpdateEverythingVideo(config *config.Config, video *youtube.Video, vod YTVo
 		} else {
 			starttime := video.LiveStreamingDetails.ActualStartTime
 			if starttime != "" {
-				endtime := video.LiveStreamingDetails.ActualEndTime
+				endtime, err := CalculateEndTime(video.LiveStreamingDetails.ActualEndTime, starttime)
+				if err != nil {
+					log.Errorf("[YT] Couldn't parse the starttime for VOD with ID %s: %v", vod.ID, err)
+				}
 
 				hashString := vid + pubtime + title + starttime + endtime + thumbnail + video.Etag
 				hashNewUint64 := xxhash.Sum64String(hashString)
@@ -248,7 +254,10 @@ func UpdateEverythingPlaylist(config *config.Config, playlistElement *youtube.Pl
 		for _, v := range info {
 			starttime := v.LiveStreamingDetails.ActualStartTime
 			if starttime != "" {
-				endtime := v.LiveStreamingDetails.ActualEndTime
+				endtime, err := CalculateEndTime(v.LiveStreamingDetails.ActualEndTime, starttime)
+				if err != nil {
+					log.Errorf("[YT] Couldn't parse the starttime for VOD with ID %s: %v", vod.ID, err)
+				}
 
 				hashString := vid + pubtime + title + starttime + endtime + thumbnail + livestreamEtag
 				hashNewUint64 := xxhash.Sum64String(hashString)
@@ -435,6 +444,53 @@ outer:
 			break outer
 		}
 	}
+
+	endTimeLess := []YTVod{}
+	for _, vod := range dbVideos {
+		if vod.EndTime == "" {
+			endTimeLess = append(endTimeLess, vod)
+		}
+	}
+	if len(endTimeLess) != 0 {
+		log.Debugf("[YT] Checking videos that don't have an 'endtime'...")
+		for _, vod := range endTimeLess {
+			vids, _, err := GetVideoInfo(config, vod.ID, vod.LivestreamEtag)
+			if err != nil {
+				log.Errorf("[YT] Got an error while checking endtime-less VOD with ID %s: %v", vod.ID, err)
+				continue
+			}
+			if len(vids) != 0 {
+				for _, vid := range vids {
+					err = UpdateEverythingVideo(config, vid, vod)
+					if err != nil {
+						log.Errorf("[YT] Got an error while getting info for endtime-less VOD with ID %s: %v", vod.ID, err)
+						continue
+					}
+				}
+			} else {
+				starttimeGo, err := time.Parse("2006-01-02T15:04:05Z", vod.StartTime)
+				if err != nil {
+					log.Errorf("[YT] Couldn't parse the time for endtime-less VOD with ID %s: %v", vod.ID, err)
+					continue
+				}
+				endtime := starttimeGo.Add(time.Hour * 24).Format("2006-01-02T15:04:05Z")
+
+				hashString := vod.ID + vod.PubTime + vod.Title + vod.StartTime + endtime + vod.Thumbnail + vod.LivestreamEtag
+				hashNewUint64 := xxhash.Sum64String(hashString)
+				hashNew := strconv.FormatUint(hashNewUint64, 10)
+				if hashNew != vod.Hash {
+					_, err := config.YTDBConfig.Statements.ReplaceVod.Exec(vod.ID, vod.PubTime, vod.Title, vod.StartTime, endtime, vod.Thumbnail, vod.LivestreamEtag, hashNew)
+					if err != nil {
+						log.Debugf("[YT] Couldn't replace VOD with Youtube ID %s: %v", vod.ID, err)
+					}
+					log.Debugf("[YT] Manually added the endtime (starttime+24h) to VOD with ID %s", vod.ID)
+				} else {
+					log.Debugf("[YT] VOD with ID %s not changed, skipping", vod.ID)
+				}
+			}
+		}
+	}
+
 	if config.YTHealthCheck != "" && config.Continuous {
 		util.HealthCheck(&config.YTHealthCheck)
 	}
