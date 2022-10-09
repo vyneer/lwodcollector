@@ -83,7 +83,7 @@ func main() {
 
 		if cfg.YTRefresh != 0 {
 			wg.Add(1)
-			util.StartYTMainThread("[YT] [SCRAPER]", yt.LoopPlaylist, &cfg, api, scraped, ytSleepTime)
+			util.StartYTMainThread("[YT]", yt.LoopPlaylist, &cfg, api, scraped, ytSleepTime)
 		}
 
 		if cfg.LWODRefresh != 0 {
