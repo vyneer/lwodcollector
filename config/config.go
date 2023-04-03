@@ -69,6 +69,7 @@ type Config struct {
 	YTPlaylist      string
 	LWODHealthCheck string
 	YTHealthCheck   string
+	MainPlatform    string
 	LWODDelay       int
 	LWODRefresh     int
 	YTDelay         int
@@ -165,6 +166,10 @@ func LoadDotEnv() Config {
 	lwoddelayStr := os.Getenv("LWOD_DELAY")
 	if lwoddelayStr == "" {
 		log.Fatalf("Please set the LWOD_DELAY environment variable and restart the app")
+	}
+	cfg.MainPlatform = os.Getenv("MAIN_PLATFORM")
+	if cfg.MainPlatform != "youtube" && cfg.MainPlatform != "twitch" {
+		log.Fatalf("Please set the MAIN_PLATFORM environment variable to either \"youtube\" or \"twitch\" and restart the app")
 	}
 	cfg.LWODDelay, err = strconv.Atoi(lwoddelayStr)
 	if err != nil {

@@ -55,7 +55,7 @@ func maxOfTemplate(template LWODTemplate) int64 {
 	return max
 }
 
-func createTemplate(row []string) LWODTemplate {
+func createTemplate(row []string, mainPlatform string) LWODTemplate {
 	var template LWODTemplate
 	tempReflectType := reflect.TypeOf(LWODTemplate{})
 
@@ -64,7 +64,7 @@ func createTemplate(row []string) LWODTemplate {
 		for k := 0; k < tempReflectType.NumField(); k++ {
 			name := strings.ToLower(tempReflectType.Field(k).Name)
 			switch name {
-			case "twitch":
+			case mainPlatform:
 				if strings.Contains(lc, name) || lc == "link to vod" {
 					reflect.ValueOf(&template).Elem().FieldByName(tempReflectType.Field(k).Name).SetInt(int64(i))
 				}
@@ -186,7 +186,7 @@ func ParseSheets(sheets map[string]LWODSheet, config *config.Config) error {
 			log.Infof(`[LWOD] Running worksheet number %d/%d (name: "%s")`, k+1, len(file.Sheets), ws.Properties.Title)
 			firstRow := getRowValues(ws.Data[0].RowData[0].Values)
 			if slices.Contains(firstRow, "Topic") && slices.Contains(firstRow, "Date") {
-				template := createTemplate(firstRow)
+				template := createTemplate(firstRow, config.MainPlatform)
 				maxValueOfTemplate := maxOfTemplate(template)
 				log.Debugf("[LWOD] Created the template for current worksheet: %+v", template)
 
