@@ -34,8 +34,20 @@ type LWODStatements struct {
 	SelectTwitchHashStmt   *sql.Stmt
 	SelectTwitchByHashStmt *sql.Stmt
 	DeleteTwitchStmt       *sql.Stmt
+	SelectRumbleHashStmt   *sql.Stmt
+	SelectRumbleByHashStmt *sql.Stmt
+	DeleteRumbleStmt       *sql.Stmt
+	SelectKickHashStmt     *sql.Stmt
+	SelectKickByHashStmt   *sql.Stmt
+	DeleteKickStmt         *sql.Stmt
+	SelectOdyseeHashStmt   *sql.Stmt
+	SelectOdyseeByHashStmt *sql.Stmt
+	DeleteOdyseeStmt       *sql.Stmt
 	InsertYTStmt           *sql.Stmt
 	InsertTwitchStmt       *sql.Stmt
+	InsertRumbleStmt       *sql.Stmt
+	InsertKickStmt         *sql.Stmt
+	InsertOdyseeStmt       *sql.Stmt
 	InsertURLStmt          *sql.Stmt
 }
 
@@ -69,7 +81,6 @@ type Config struct {
 	YTPlaylist      string
 	LWODHealthCheck string
 	YTHealthCheck   string
-	MainPlatform    string
 	LWODDelay       int
 	LWODRefresh     int
 	YTDelay         int
@@ -87,9 +98,16 @@ const sqlCreateMain string = `CREATE TABLE IF NOT EXISTS lwod (
 	datestreamed text,
 	vodid text, 
 	vidid text, 
+	rumbleid text, 
+	kickid text, 
+	odyseeid text, 
 	starttime text, 
 	endtime text, 
 	yttime integer,
+	twitchtime integer,
+	rumbletime integer,
+	kicktime integer,
+	odyseetime integer,
 	game text, 
 	subject text, 
 	topic text,
@@ -98,6 +116,15 @@ const sqlCreateMain string = `CREATE TABLE IF NOT EXISTS lwod (
 		ON DELETE CASCADE,
 	FOREIGN KEY (vidid)
 		REFERENCES youtube(id)
+		ON DELETE CASCADE,
+	FOREIGN KEY (rumbleid)
+		REFERENCES rumble(id)
+		ON DELETE CASCADE,
+	FOREIGN KEY (kickid)
+		REFERENCES kick(id)
+		ON DELETE CASCADE,
+	FOREIGN KEY (odyseeid)
+		REFERENCES odysee(id)
 		ON DELETE CASCADE
 );`
 
@@ -108,6 +135,24 @@ const sqlCreateTwitch string = `CREATE TABLE IF NOT EXISTS twitch (
 );`
 
 const sqlCreateYouTube string = `CREATE TABLE IF NOT EXISTS youtube (
+	id text, 
+	hash text,
+	PRIMARY KEY (id)
+);`
+
+const sqlCreateRumble string = `CREATE TABLE IF NOT EXISTS rumble (
+	id text, 
+	hash text,
+	PRIMARY KEY (id)
+);`
+
+const sqlCreateKick string = `CREATE TABLE IF NOT EXISTS kick (
+	id text, 
+	hash text,
+	PRIMARY KEY (id)
+);`
+
+const sqlCreateOdysee string = `CREATE TABLE IF NOT EXISTS odysee (
 	id text, 
 	hash text,
 	PRIMARY KEY (id)
@@ -166,10 +211,6 @@ func LoadDotEnv() Config {
 	lwoddelayStr := os.Getenv("LWOD_DELAY")
 	if lwoddelayStr == "" {
 		log.Fatalf("Please set the LWOD_DELAY environment variable and restart the app")
-	}
-	cfg.MainPlatform = os.Getenv("MAIN_PLATFORM")
-	if cfg.MainPlatform != "youtube" && cfg.MainPlatform != "twitch" {
-		log.Fatalf("Please set the MAIN_PLATFORM environment variable to either \"youtube\" or \"twitch\" and restart the app")
 	}
 	cfg.LWODDelay, err = strconv.Atoi(lwoddelayStr)
 	if err != nil {
@@ -234,6 +275,18 @@ func LoadDatabase(config *Config) {
 		log.Fatalf("Error creating the Twitch table: %s", err)
 	}
 
+	if _, err := config.LWODDBConfig.DB.Exec(sqlCreateRumble); err != nil {
+		log.Fatalf("Error creating the Rumble table: %s", err)
+	}
+
+	if _, err := config.LWODDBConfig.DB.Exec(sqlCreateKick); err != nil {
+		log.Fatalf("Error creating the Kick table: %s", err)
+	}
+
+	if _, err := config.LWODDBConfig.DB.Exec(sqlCreateOdysee); err != nil {
+		log.Fatalf("Error creating the Odysee table: %s", err)
+	}
+
 	if _, err := config.LWODDBConfig.DB.Exec(sqlCreateMain); err != nil {
 		log.Fatalf("Error creating the lwod table: %s", err)
 	}
@@ -262,12 +315,57 @@ func LoadDatabase(config *Config) {
 		log.Fatalf("Error preparing a db statement: %s", err)
 	}
 
-	config.LWODDBConfig.Statements.SelectTwitchByHashStmt, err = config.LWODDBConfig.DB.Prepare("SELECT id FROM youtube WHERE hash = ? LIMIT 1")
+	config.LWODDBConfig.Statements.SelectTwitchByHashStmt, err = config.LWODDBConfig.DB.Prepare("SELECT id FROM twitch WHERE hash = ? LIMIT 1")
 	if err != nil {
 		log.Fatalf("Error preparing a db statement: %s", err)
 	}
 
 	config.LWODDBConfig.Statements.DeleteTwitchStmt, err = config.LWODDBConfig.DB.Prepare("DELETE FROM twitch WHERE id = ?")
+	if err != nil {
+		log.Fatalf("Error preparing a db statement: %s", err)
+	}
+
+	config.LWODDBConfig.Statements.SelectRumbleHashStmt, err = config.LWODDBConfig.DB.Prepare("SELECT hash FROM rumble WHERE id = ? LIMIT 1")
+	if err != nil {
+		log.Fatalf("Error preparing a db statement: %s", err)
+	}
+
+	config.LWODDBConfig.Statements.SelectRumbleByHashStmt, err = config.LWODDBConfig.DB.Prepare("SELECT id FROM rumble WHERE hash = ? LIMIT 1")
+	if err != nil {
+		log.Fatalf("Error preparing a db statement: %s", err)
+	}
+
+	config.LWODDBConfig.Statements.DeleteRumbleStmt, err = config.LWODDBConfig.DB.Prepare("DELETE FROM rumble WHERE id = ?")
+	if err != nil {
+		log.Fatalf("Error preparing a db statement: %s", err)
+	}
+
+	config.LWODDBConfig.Statements.SelectKickHashStmt, err = config.LWODDBConfig.DB.Prepare("SELECT hash FROM kick WHERE id = ? LIMIT 1")
+	if err != nil {
+		log.Fatalf("Error preparing a db statement: %s", err)
+	}
+
+	config.LWODDBConfig.Statements.SelectKickByHashStmt, err = config.LWODDBConfig.DB.Prepare("SELECT id FROM kick WHERE hash = ? LIMIT 1")
+	if err != nil {
+		log.Fatalf("Error preparing a db statement: %s", err)
+	}
+
+	config.LWODDBConfig.Statements.DeleteKickStmt, err = config.LWODDBConfig.DB.Prepare("DELETE FROM kick WHERE id = ?")
+	if err != nil {
+		log.Fatalf("Error preparing a db statement: %s", err)
+	}
+
+	config.LWODDBConfig.Statements.SelectOdyseeHashStmt, err = config.LWODDBConfig.DB.Prepare("SELECT hash FROM odysee WHERE id = ? LIMIT 1")
+	if err != nil {
+		log.Fatalf("Error preparing a db statement: %s", err)
+	}
+
+	config.LWODDBConfig.Statements.SelectOdyseeByHashStmt, err = config.LWODDBConfig.DB.Prepare("SELECT id FROM odysee WHERE hash = ? LIMIT 1")
+	if err != nil {
+		log.Fatalf("Error preparing a db statement: %s", err)
+	}
+
+	config.LWODDBConfig.Statements.DeleteOdyseeStmt, err = config.LWODDBConfig.DB.Prepare("DELETE FROM odysee WHERE id = ?")
 	if err != nil {
 		log.Fatalf("Error preparing a db statement: %s", err)
 	}
@@ -278,6 +376,21 @@ func LoadDatabase(config *Config) {
 	}
 
 	config.LWODDBConfig.Statements.InsertTwitchStmt, err = config.LWODDBConfig.DB.Prepare("INSERT INTO twitch (id, hash) VALUES (?, ?)")
+	if err != nil {
+		log.Fatalf("Error preparing a db statement: %s", err)
+	}
+
+	config.LWODDBConfig.Statements.InsertRumbleStmt, err = config.LWODDBConfig.DB.Prepare("INSERT INTO rumble (id, hash) VALUES (?, ?)")
+	if err != nil {
+		log.Fatalf("Error preparing a db statement: %s", err)
+	}
+
+	config.LWODDBConfig.Statements.InsertKickStmt, err = config.LWODDBConfig.DB.Prepare("INSERT INTO kick (id, hash) VALUES (?, ?)")
+	if err != nil {
+		log.Fatalf("Error preparing a db statement: %s", err)
+	}
+
+	config.LWODDBConfig.Statements.InsertOdyseeStmt, err = config.LWODDBConfig.DB.Prepare("INSERT INTO odysee (id, hash) VALUES (?, ?)")
 	if err != nil {
 		log.Fatalf("Error preparing a db statement: %s", err)
 	}
