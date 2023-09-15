@@ -280,7 +280,7 @@ func ParseSheets(sheets map[string]LWODSheet, config *config.Config) error {
 							rumbleID = id
 							rT := rumbleURL.Query().Get("t")
 							if len(rT) > 0 {
-								rumbleStamp, err = strconv.Atoi(rT)
+								rumbleStamp, err = strconv.Atoi(numberRegex.FindString(rT))
 								if err != nil {
 									return WrapWithLWODError(err, "URL parse error")
 								}
@@ -311,7 +311,7 @@ func ParseSheets(sheets map[string]LWODSheet, config *config.Config) error {
 							odyseeID = id
 							oT := odyseeURL.Query().Get("t")
 							if len(oT) > 0 {
-								odyseeStamp, err = strconv.Atoi(oT)
+								odyseeStamp, err = strconv.Atoi(numberRegex.FindString(oT))
 								if err != nil {
 									return WrapWithLWODError(err, "URL parse error")
 								}
