@@ -392,7 +392,7 @@ func ParseSheets(sheets map[string]LWODSheet, config *config.Config) error {
 							return WrapWithLWODError(err, fmt.Sprintf("Couldn't insert entry with YouTube ID %s", key))
 						}
 						hashes[key] = hashNew
-						if k+1 == 2 && sheetKey == "Today" {
+						if k > 0 && sheetKey == "Today" {
 							_, err = config.LWODDBConfig.Statements.InsertURLStmt.Exec(fmt.Sprintf("%s-01", time.Now().Format("2006-01")), sheet.ID)
 							if err != nil {
 								return WrapWithLWODError(err, fmt.Sprintf("Couldn't insert entry into lwodUrl with YouTube ID %s", key))
@@ -435,7 +435,7 @@ func ParseSheets(sheets map[string]LWODSheet, config *config.Config) error {
 							return WrapWithLWODError(err, fmt.Sprintf("Couldn't insert entry with Twitch ID %s", key))
 						}
 						hashes[key] = hashNew
-						if k+1 == 2 && sheetKey == "Today" {
+						if k > 0 && sheetKey == "Today" {
 							_, err = config.LWODDBConfig.Statements.InsertURLStmt.Exec(fmt.Sprintf("%s-01", time.Now().Format("2006-01")), sheet.ID)
 							if err != nil {
 								return WrapWithLWODError(err, fmt.Sprintf("Couldn't insert entry into lwodUrl with Twitch ID %s", key))
@@ -478,7 +478,7 @@ func ParseSheets(sheets map[string]LWODSheet, config *config.Config) error {
 							return WrapWithLWODError(err, fmt.Sprintf("Couldn't insert entry with Rumble ID %s", key))
 						}
 						hashes[key] = hashNew
-						if k+1 == 2 && sheetKey == "Today" {
+						if k > 0 && sheetKey == "Today" {
 							_, err = config.LWODDBConfig.Statements.InsertURLStmt.Exec(fmt.Sprintf("%s-01", time.Now().Format("2006-01")), sheet.ID)
 							if err != nil {
 								return WrapWithLWODError(err, fmt.Sprintf("Couldn't insert entry into lwodUrl with Rumble ID %s", key))
@@ -521,7 +521,7 @@ func ParseSheets(sheets map[string]LWODSheet, config *config.Config) error {
 							return WrapWithLWODError(err, fmt.Sprintf("Couldn't insert entry with Kick ID %s", key))
 						}
 						hashes[key] = hashNew
-						if k+1 == 2 && sheetKey == "Today" {
+						if k > 0 && sheetKey == "Today" {
 							_, err = config.LWODDBConfig.Statements.InsertURLStmt.Exec(fmt.Sprintf("%s-01", time.Now().Format("2006-01")), sheet.ID)
 							if err != nil {
 								return WrapWithLWODError(err, fmt.Sprintf("Couldn't insert entry into lwodUrl with Kick ID %s", key))
@@ -564,7 +564,7 @@ func ParseSheets(sheets map[string]LWODSheet, config *config.Config) error {
 							return WrapWithLWODError(err, fmt.Sprintf("Couldn't insert entry with Odysee ID %s", key))
 						}
 						hashes[key] = hashNew
-						if k+1 == 2 && sheetKey == "Today" {
+						if k > 0 && sheetKey == "Today" {
 							_, err = config.LWODDBConfig.Statements.InsertURLStmt.Exec(fmt.Sprintf("%s-01", time.Now().Format("2006-01")), sheet.ID)
 							if err != nil {
 								return WrapWithLWODError(err, fmt.Sprintf("Couldn't insert entry into lwodUrl with Odysee ID %s", key))
