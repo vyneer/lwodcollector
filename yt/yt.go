@@ -2,9 +2,9 @@ package yt
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +17,14 @@ import (
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/youtube/v3"
 )
+
+type initialData struct {
+	CurrentVideoEndpoint struct {
+		WatchEndpoint struct {
+			VideoID string `json:"videoId"`
+		} `json:"watchEndpoint"`
+	} `json:"currentVideoEndpoint"`
+}
 
 type YTVod struct {
 	ID             string
@@ -31,11 +39,9 @@ type YTVod struct {
 
 var ErrIsNotModified = errors.New("not modified")
 
-var ytRegexp *regexp.Regexp = regexp.MustCompile(`\/watch\?v=([^\"]*)`)
-
 func ScrapeLivestreamID(config *config.Config) string {
 	var index int
-	var id string
+	idChan := make(chan string)
 	c := colly.NewCollector()
 	// disable cookie handling to bypass youtube consent screen
 	c.DisableCookies()
@@ -44,15 +50,37 @@ func ScrapeLivestreamID(config *config.Config) string {
 		index = strings.Index(string(r.Body), "Started streaming ")
 	})
 
-	c.OnHTML("link[href][rel='canonical']", func(h *colly.HTMLElement) {
-		if matches := ytRegexp.FindStringSubmatch(h.Attr("href")); len(matches) > 1 && index != -1 {
-			id = matches[1]
+	c.OnHTML("script", func(h *colly.HTMLElement) {
+		if !strings.Contains(h.Text, "var ytInitialData") {
+			return
 		}
+
+		go func() {
+			id := ""
+
+			defer func() {
+				idChan <- id
+			}()
+
+			if index == -1 {
+				return
+			}
+
+			initialDataString := strings.TrimPrefix(h.Text, "var ytInitialData = ")
+			initialDataString = strings.TrimSuffix(initialDataString, ";")
+
+			var initialData initialData
+			if err := json.Unmarshal([]byte(initialDataString), &initialData); err != nil {
+				return
+			}
+
+			id = initialData.CurrentVideoEndpoint.WatchEndpoint.VideoID
+		}()
 	})
 
 	c.Visit(fmt.Sprintf("https://youtube.com/channel/%s/live?hl=en", config.YTChannel))
 
-	return id
+	return <-idChan
 }
 
 func GetLivestreamID(config *config.Config, etag string) ([]*youtube.Video, string, error) {
