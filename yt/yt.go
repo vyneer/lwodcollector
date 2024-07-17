@@ -45,8 +45,8 @@ func ScrapeLivestreamID(config *config.Config) string {
 	})
 
 	c.OnHTML("link[href][rel='canonical']", func(h *colly.HTMLElement) {
-		if index != -1 {
-			id = ytRegexp.FindStringSubmatch(h.Attr("href"))[1]
+		if matches := ytRegexp.FindStringSubmatch(h.Attr("href")); len(matches) > 1 && index != -1 {
+			id = matches[1]
 		}
 	})
 
