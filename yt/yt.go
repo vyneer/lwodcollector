@@ -41,7 +41,7 @@ var ErrIsNotModified = errors.New("not modified")
 
 func ScrapeLivestreamID(config *config.Config) string {
 	var index int
-	idChan := make(chan string)
+	var id string
 	c := colly.NewCollector()
 	// disable cookie handling to bypass youtube consent screen
 	c.DisableCookies()
@@ -55,32 +55,24 @@ func ScrapeLivestreamID(config *config.Config) string {
 			return
 		}
 
-		go func() {
-			id := ""
+		if index == -1 {
+			return
+		}
 
-			defer func() {
-				idChan <- id
-			}()
+		initialDataString := strings.TrimPrefix(h.Text, "var ytInitialData = ")
+		initialDataString = strings.TrimSuffix(initialDataString, ";")
 
-			if index == -1 {
-				return
-			}
+		var initialData initialData
+		if err := json.Unmarshal([]byte(initialDataString), &initialData); err != nil {
+			return
+		}
 
-			initialDataString := strings.TrimPrefix(h.Text, "var ytInitialData = ")
-			initialDataString = strings.TrimSuffix(initialDataString, ";")
-
-			var initialData initialData
-			if err := json.Unmarshal([]byte(initialDataString), &initialData); err != nil {
-				return
-			}
-
-			id = initialData.CurrentVideoEndpoint.WatchEndpoint.VideoID
-		}()
+		id = initialData.CurrentVideoEndpoint.WatchEndpoint.VideoID
 	})
 
 	c.Visit(fmt.Sprintf("https://youtube.com/channel/%s/live?hl=en", config.YTChannel))
 
-	return <-idChan
+	return id
 }
 
 func GetLivestreamID(config *config.Config, etag string) ([]*youtube.Video, string, error) {
